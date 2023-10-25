@@ -1,80 +1,95 @@
 // src/env.js
-var ENV = {
+var Environment = class {
   // OpenAI API Key
-  API_KEY: null,
+  API_KEY = [];
   // 允许访问的Telegram Token， 设置时以逗号分隔
-  TELEGRAM_AVAILABLE_TOKENS: [],
+  TELEGRAM_AVAILABLE_TOKENS = [];
   // 允许所有人使用
-  I_AM_A_GENEROUS_PERSON: false,
+  I_AM_A_GENEROUS_PERSON = false;
   // 白名单
-  CHAT_WHITE_LIST: [],
+  CHAT_WHITE_LIST = [];
   // 允许访问的Telegram Token 对应的Bot Name， 设置时以逗号分隔
-  TELEGRAM_BOT_NAME: [],
+  TELEGRAM_BOT_NAME = [];
   // 群组白名单
-  CHAT_GROUP_WHITE_LIST: [],
+  CHAT_GROUP_WHITE_LIST = [];
   // 群组机器人开关
-  GROUP_CHAT_BOT_ENABLE: true,
+  GROUP_CHAT_BOT_ENABLE = true;
   // 群组机器人共享模式,关闭后，一个群组只有一个会话和配置。开启的话群组的每个人都有自己的会话上下文
-  GROUP_CHAT_BOT_SHARE_MODE: false,
+  GROUP_CHAT_BOT_SHARE_MODE = false;
   // OpenAI的模型名称
-  CHAT_MODEL: "gpt-3.5-turbo",
+  CHAT_MODEL = "gpt-3.5-turbo";
   // 为了避免4096字符限制，将消息删减
-  AUTO_TRIM_HISTORY: true,
+  AUTO_TRIM_HISTORY = true;
   // 最大历史记录长度
-  MAX_HISTORY_LENGTH: 20,
+  MAX_HISTORY_LENGTH = 20;
   // 最大消息长度
-  MAX_TOKEN_LENGTH: 2048,
+  MAX_TOKEN_LENGTH = 2048;
   // 使用GPT3的TOKEN计数
-  GPT3_TOKENS_COUNT: false,
+  GPT3_TOKENS_COUNT = false;
+  // GPT3计数器资源地址
+  GPT3_TOKENS_COUNT_REPO = "https://raw.githubusercontent.com/tbxark-arc/GPT-3-Encoder/master";
   // 全局默认初始化消息
-  SYSTEM_INIT_MESSAGE: "You are a helpful assistant",
+  SYSTEM_INIT_MESSAGE = null;
   // 全局默认初始化消息角色
-  SYSTEM_INIT_MESSAGE_ROLE: "system",
+  SYSTEM_INIT_MESSAGE_ROLE = "system";
   // 是否开启使用统计
-  ENABLE_USAGE_STATISTICS: false,
+  ENABLE_USAGE_STATISTICS = false;
   // 隐藏部分命令按钮
-  HIDE_COMMAND_BUTTONS: ["/role"],
+  HIDE_COMMAND_BUTTONS = ["/role"];
   // 显示快捷回复按钮
-  SHOW_REPLY_BUTTON: false,
+  SHOW_REPLY_BUTTON = false;
   // 检查更新的分支
-  UPDATE_BRANCH: "master",
+  UPDATE_BRANCH = "master";
   // 当前版本
-  BUILD_TIMESTAMP: 1691479160,
+  BUILD_TIMESTAMP = 1697784701;
   // 当前版本 commit id
-  BUILD_VERSION: "23155ba",
-  I18N: null,
-  LANGUAGE: "zh-cn",
+  BUILD_VERSION = "50e577b";
+  I18N = null;
+  LANGUAGE = "zh-cn";
   // 使用流模式
-  STREAM_MODE: true,
+  STREAM_MODE = true;
   // 安全模式
-  SAFE_MODE: true,
+  SAFE_MODE = true;
   // 调试模式
-  DEBUG_MODE: false,
+  DEBUG_MODE = false;
   // 开发模式
-  DEV_MODE: false,
-  TELEGRAM_API_DOMAIN: "https://api.telegram.org",
-  OPENAI_API_DOMAIN: "https://api.openai.com",
-  AZURE_API_KEY: null,
-  AZURE_COMPLETIONS_API: null
+  DEV_MODE = false;
+  // Telegram API Domain
+  TELEGRAM_API_DOMAIN = "https://api.telegram.org";
+  // OpenAI API Domain 可替换兼容openai api的其他服务商
+  OPENAI_API_DOMAIN = "https://api.openai.com";
+  // OpenAI API BASE `https://api.openai.com/v1`
+  OPENAI_API_BASE = null;
+  // Azure API Key
+  AZURE_API_KEY = null;
+  // Azure Completions API
+  AZURE_COMPLETIONS_API = null;
+  // workers ai模型
+  WORKERS_AI_MODEL = "@cf/meta/llama-2-7b-chat-int8";
 };
+var ENV = new Environment();
+var DATABASE = null;
+var API_GUARD = null;
+var AI = null;
 var CONST = {
   PASSWORD_KEY: "chat_history_password",
   GROUP_TYPES: ["group", "supergroup"],
   USER_AGENT: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.2 Safari/605.1.15"
 };
-var DATABASE = null;
-var API_GUARD = null;
-var ENV_VALUE_TYPE = {
-  API_KEY: [],
-  AZURE_API_KEY: "string",
-  AZURE_COMPLETIONS_API: "string"
-};
 function initEnv(env, i18n2) {
   DATABASE = env.DATABASE;
   API_GUARD = env.API_GUARD;
-  for (const key in ENV) {
+  AI = env.AI;
+  const envValueTypes = {
+    SYSTEM_INIT_MESSAGE: "string",
+    OPENAI_API_BASE: "string",
+    AZURE_API_KEY: "string",
+    AZURE_COMPLETIONS_API: "string"
+  };
+  for (const key of Object.keys(ENV)) {
+    const t = envValueTypes[key] ? envValueTypes[key] : typeof ENV[key];
     if (env[key]) {
-      switch (ENV_VALUE_TYPE[key] ? typeof ENV_VALUE_TYPE[key] : typeof ENV[key]) {
+      switch (t) {
         case "number":
           ENV[key] = parseInt(env[key]) || ENV[key];
           break;
@@ -84,10 +99,11 @@ function initEnv(env, i18n2) {
         case "string":
           ENV[key] = env[key];
           break;
+        case "array":
+          ENV[key] = env[key].split(",");
+          break;
         case "object":
           if (Array.isArray(ENV[key])) {
-            ENV[key] = env[key].split(",");
-          } else if (ENV_VALUE_TYPE[key] && Array.isArray(ENV_VALUE_TYPE[key])) {
             ENV[key] = env[key].split(",");
           } else {
             try {
@@ -104,15 +120,20 @@ function initEnv(env, i18n2) {
     }
   }
   {
+    ENV.I18N = i18n2((ENV.LANGUAGE || "cn").toLowerCase());
     if (env.TELEGRAM_TOKEN && !ENV.TELEGRAM_AVAILABLE_TOKENS.includes(env.TELEGRAM_TOKEN)) {
       if (env.BOT_NAME && ENV.TELEGRAM_AVAILABLE_TOKENS.length === ENV.TELEGRAM_BOT_NAME.length) {
         ENV.TELEGRAM_BOT_NAME.push(env.BOT_NAME);
       }
       ENV.TELEGRAM_AVAILABLE_TOKENS.push(env.TELEGRAM_TOKEN);
     }
+    if (!ENV.OPENAI_API_BASE) {
+      ENV.OPENAI_API_BASE = `${ENV.OPENAI_API_DOMAIN}/v1`;
+    }
+    if (!ENV.SYSTEM_INIT_MESSAGE) {
+      ENV.SYSTEM_INIT_MESSAGE = ENV.I18N?.env?.system_init_message || "You are a helpful assistant";
+    }
   }
-  ENV.I18N = i18n2((ENV.LANGUAGE || "cn").toLowerCase());
-  ENV.SYSTEM_INIT_MESSAGE = ENV.I18N.env.system_init_message;
   console.log(ENV);
 }
 
@@ -282,7 +303,6 @@ var Context = class {
     console.log(this.USER_CONFIG);
   }
   /**
-   *
    * @return {string|null}
    */
   openAIKeyFromContext() {
@@ -292,14 +312,22 @@ var Context = class {
     if (this.USER_CONFIG.OPENAI_API_KEY) {
       return this.USER_CONFIG.OPENAI_API_KEY;
     }
-    if (Array.isArray(ENV.API_KEY)) {
-      if (ENV.API_KEY.length === 0) {
-        return null;
-      }
-      return ENV.API_KEY[Math.floor(Math.random() * ENV.API_KEY.length)];
-    } else {
-      return ENV.API_KEY;
+    if (ENV.API_KEY.length === 0) {
+      return null;
     }
+    return ENV.API_KEY[Math.floor(Math.random() * ENV.API_KEY.length)];
+  }
+  /**
+   * @return {boolean}
+   */
+  hasValidOpenAIKey() {
+    if (ENV.AZURE_COMPLETIONS_API) {
+      return ENV.AZURE_API_KEY !== null;
+    }
+    if (this.USER_CONFIG.OPENAI_API_KEY) {
+      return true;
+    }
+    return ENV.API_KEY.length > 0;
   }
 };
 
@@ -506,33 +534,324 @@ async function getBot(token) {
   }
 }
 
-// src/gpt3.js
-async function resourceLoader(key, url) {
-  try {
-    const raw = await DATABASE.get(key);
-    if (raw && raw !== "") {
-      return raw;
+// src/vendors/stream.js
+var Stream = class {
+  constructor(response, controller) {
+    this.response = response;
+    this.controller = controller;
+    this.decoder = new SSEDecoder();
+  }
+  async *iterMessages() {
+    if (!this.response.body) {
+      this.controller.abort();
+      throw new Error(`Attempted to iterate over a response with no body`);
     }
-  } catch (e) {
-    console.error(e);
-  }
-  try {
-    const bpe = await fetch(url, {
-      headers: {
-        "User-Agent": CONST.USER_AGENT
+    const lineDecoder = new LineDecoder();
+    const iter = readableStreamAsyncIterable(this.response.body);
+    for await (const chunk of iter) {
+      for (const line of lineDecoder.decode(chunk)) {
+        const sse = this.decoder.decode(line);
+        if (sse)
+          yield sse;
       }
-    }).then((x) => x.text());
-    await DATABASE.put(key, bpe);
-    return bpe;
-  } catch (e) {
-    console.error(e);
+    }
+    for (const line of lineDecoder.flush()) {
+      const sse = this.decoder.decode(line);
+      if (sse)
+        yield sse;
+    }
   }
-  return null;
+  async *[Symbol.asyncIterator]() {
+    let done = false;
+    try {
+      for await (const sse of this.iterMessages()) {
+        if (done)
+          continue;
+        if (sse.data.startsWith("[DONE]")) {
+          done = true;
+          continue;
+        }
+        if (sse.event === null) {
+          try {
+            yield JSON.parse(sse.data);
+          } catch (e) {
+            console.error(`Could not parse message into JSON:`, sse.data);
+            console.error(`From chunk:`, sse.raw);
+            throw e;
+          }
+        }
+      }
+      done = true;
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError")
+        return;
+      throw e;
+    } finally {
+      if (!done)
+        this.controller.abort();
+    }
+  }
+};
+var SSEDecoder = class {
+  constructor() {
+    this.event = null;
+    this.data = [];
+    this.chunks = [];
+  }
+  decode(line) {
+    if (line.endsWith("\r")) {
+      line = line.substring(0, line.length - 1);
+    }
+    if (!line) {
+      if (!this.event && !this.data.length)
+        return null;
+      const sse = {
+        event: this.event,
+        data: this.data.join("\n"),
+        raw: this.chunks
+      };
+      this.event = null;
+      this.data = [];
+      this.chunks = [];
+      return sse;
+    }
+    this.chunks.push(line);
+    if (line.startsWith(":")) {
+      return null;
+    }
+    let [fieldname, _, value] = partition(line, ":");
+    if (value.startsWith(" ")) {
+      value = value.substring(1);
+    }
+    if (fieldname === "event") {
+      this.event = value;
+    } else if (fieldname === "data") {
+      this.data.push(value);
+    }
+    return null;
+  }
+};
+var LineDecoder = class {
+  constructor() {
+    this.buffer = [];
+    this.trailingCR = false;
+  }
+  decode(chunk) {
+    let text = this.decodeText(chunk);
+    if (this.trailingCR) {
+      text = "\r" + text;
+      this.trailingCR = false;
+    }
+    if (text.endsWith("\r")) {
+      this.trailingCR = true;
+      text = text.slice(0, -1);
+    }
+    if (!text) {
+      return [];
+    }
+    const trailingNewline = LineDecoder.NEWLINE_CHARS.has(text[text.length - 1] || "");
+    let lines = text.split(LineDecoder.NEWLINE_REGEXP);
+    if (lines.length === 1 && !trailingNewline) {
+      this.buffer.push(lines[0]);
+      return [];
+    }
+    if (this.buffer.length > 0) {
+      lines = [this.buffer.join("") + lines[0], ...lines.slice(1)];
+      this.buffer = [];
+    }
+    if (!trailingNewline) {
+      this.buffer = [lines.pop() || ""];
+    }
+    return lines;
+  }
+  decodeText(bytes) {
+    var _a;
+    if (bytes == null)
+      return "";
+    if (typeof bytes === "string")
+      return bytes;
+    if (typeof Buffer !== "undefined") {
+      if (bytes instanceof Buffer) {
+        return bytes.toString();
+      }
+      if (bytes instanceof Uint8Array) {
+        return Buffer.from(bytes).toString();
+      }
+      throw new Error(`Unexpected: received non-Uint8Array (${bytes.constructor.name}) stream chunk in an environment with a global "Buffer" defined, which this library assumes to be Node. Please report this error.`);
+    }
+    if (typeof TextDecoder !== "undefined") {
+      if (bytes instanceof Uint8Array || bytes instanceof ArrayBuffer) {
+        (_a = this.textDecoder) !== null && _a !== void 0 ? _a : this.textDecoder = new TextDecoder("utf8");
+        return this.textDecoder.decode(bytes);
+      }
+      throw new Error(`Unexpected: received non-Uint8Array/ArrayBuffer (${bytes.constructor.name}) in a web platform. Please report this error.`);
+    }
+    throw new Error(`Unexpected: neither Buffer nor TextDecoder are available as globals. Please report this error.`);
+  }
+  flush() {
+    if (!this.buffer.length && !this.trailingCR) {
+      return [];
+    }
+    const lines = [this.buffer.join("")];
+    this.buffer = [];
+    this.trailingCR = false;
+    return lines;
+  }
+};
+LineDecoder.NEWLINE_CHARS = /* @__PURE__ */ new Set(["\n", "\r", "\v", "\f", "", "", "", "\x85", "\u2028", "\u2029"]);
+LineDecoder.NEWLINE_REGEXP = /\r\n|[\n\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]/g;
+function partition(str, delimiter) {
+  const index = str.indexOf(delimiter);
+  if (index !== -1) {
+    return [str.substring(0, index), delimiter, str.substring(index + delimiter.length)];
+  }
+  return [str, "", ""];
 }
-async function gpt3TokensCounter() {
-  const repo = "https://raw.githubusercontent.com/tbxark-archive/GPT-3-Encoder/master";
-  const encoder = await resourceLoader("encoder_raw_file", `${repo}/encoder.json`).then((x) => JSON.parse(x));
-  const bpe_file = await resourceLoader("bpe_raw_file", `${repo}/vocab.bpe`);
+function readableStreamAsyncIterable(stream) {
+  if (stream[Symbol.asyncIterator])
+    return stream;
+  const reader = stream.getReader();
+  return {
+    async next() {
+      try {
+        const result = await reader.read();
+        if (result === null || result === void 0 ? void 0 : result.done)
+          reader.releaseLock();
+        return result;
+      } catch (e) {
+        reader.releaseLock();
+        throw e;
+      }
+    },
+    async return() {
+      const cancelPromise = reader.cancel();
+      reader.releaseLock();
+      await cancelPromise;
+      return { done: true, value: void 0 };
+    },
+    [Symbol.asyncIterator]() {
+      return this;
+    }
+  };
+}
+
+// src/openai.js
+function isOpenAIEnable(context) {
+  return context.hasValidOpenAIKey();
+}
+async function requestCompletionsFromOpenAI(message, history, context, onStream) {
+  const key = context.openAIKeyFromContext();
+  const body = {
+    model: ENV.CHAT_MODEL,
+    ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
+    messages: [...history || [], { role: "user", content: message }],
+    stream: onStream != null
+  };
+  const controller = new AbortController();
+  const { signal } = controller;
+  const timeout = 1e3 * 60 * 5;
+  setTimeout(() => controller.abort(), timeout);
+  let url = `${ENV.OPENAI_API_BASE}/chat/completions`;
+  const header = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${key}`
+  };
+  if (ENV.AZURE_COMPLETIONS_API) {
+    url = ENV.AZURE_COMPLETIONS_API;
+    header["api-key"] = key;
+    delete header["Authorization"];
+    delete body.model;
+  }
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: header,
+    body: JSON.stringify(body),
+    signal
+  });
+  if (onStream && resp.ok && resp.headers.get("content-type").indexOf("text/event-stream") !== -1) {
+    const stream = new Stream(resp, controller);
+    let contentFull = "";
+    let lengthDelta = 0;
+    let updateStep = 20;
+    try {
+      for await (const data of stream) {
+        const c = data.choices[0].delta?.content || "";
+        lengthDelta += c.length;
+        contentFull = contentFull + c;
+        if (lengthDelta > updateStep) {
+          lengthDelta = 0;
+          updateStep += 5;
+          await onStream(`${contentFull}
+${ENV.I18N.message.loading}...`);
+        }
+      }
+    } catch (e) {
+      contentFull += `
+ERROR: ${e.message}`;
+    }
+    return contentFull;
+  }
+  const result = await resp.json();
+  if (result.error?.message) {
+    if (ENV.DEBUG_MODE || ENV.DEV_MODE) {
+      throw new Error(`OpenAI API Error
+> ${result.error.message}
+Body: ${JSON.stringify(body)}`);
+    } else {
+      throw new Error(`OpenAI API Error
+> ${result.error.message}`);
+    }
+  }
+  setTimeout(() => updateBotUsage(result.usage, context).catch(console.error), 0);
+  return result.choices[0].message.content;
+}
+async function requestImageFromOpenAI(prompt, context) {
+  const key = context.openAIKeyFromContext();
+  const body = {
+    prompt,
+    n: 1,
+    size: "512x512"
+  };
+  const resp = await fetch(`${ENV.OPENAI_API_BASE}/images/generations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${key}`
+    },
+    body: JSON.stringify(body)
+  }).then((res) => res.json());
+  if (resp.error?.message) {
+    throw new Error(`OpenAI API Error
+> ${resp.error.message}`);
+  }
+  return resp.data[0].url;
+}
+async function updateBotUsage(usage, context) {
+  if (!ENV.ENABLE_USAGE_STATISTICS) {
+    return;
+  }
+  let dbValue = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.usageKey));
+  if (!dbValue) {
+    dbValue = {
+      tokens: {
+        total: 0,
+        chats: {}
+      }
+    };
+  }
+  dbValue.tokens.total += usage.total_tokens;
+  if (!dbValue.tokens.chats[context.SHARE_CONTEXT.chatId]) {
+    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] = usage.total_tokens;
+  } else {
+    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] += usage.total_tokens;
+  }
+  await DATABASE.put(context.SHARE_CONTEXT.usageKey, JSON.stringify(dbValue));
+}
+
+// src/vendors/gpt3.js
+async function gpt3TokensCounter(repo, loader) {
+  const encoder = await loader("encoder_raw_file", `${repo}/encoder.json`).then((x) => JSON.parse(x));
+  const bpe_file = await loader("bpe_raw_file", `${repo}/vocab.bpe`);
   const range = (x, y) => {
     const res = Array.from(Array(y).keys()).slice(x);
     return res;
@@ -765,7 +1084,29 @@ async function tokensCounter() {
   let counter = (text) => Array.from(text).length;
   try {
     if (ENV.GPT3_TOKENS_COUNT) {
-      counter = await gpt3TokensCounter();
+      const loader = async (key, url) => {
+        try {
+          const raw = await DATABASE.get(key);
+          if (raw && raw !== "") {
+            return raw;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        try {
+          const bpe = await fetch(url, {
+            headers: {
+              "User-Agent": CONST.USER_AGENT
+            }
+          }).then((x) => x.text());
+          await DATABASE.put(key, bpe);
+          return bpe;
+        } catch (e) {
+          console.error(e);
+        }
+        return null;
+      };
+      counter = await gpt3TokensCounter(ENV.GPT3_TOKENS_COUNT_REPO, loader);
     }
   } catch (e) {
     console.error(e);
@@ -793,164 +1134,413 @@ function makeResponse200(resp) {
   }
 }
 
-// src/openai.js
-function extractContentFromStreamData(stream) {
-  const line = stream.split("\n");
-  let remainingStr = "";
-  let contentStr = "";
-  for (const l of line) {
-    try {
-      if (l.startsWith("data:") && l.endsWith("}")) {
-        const data = JSON.parse(l.substring(5));
-        contentStr += data.choices[0].delta?.content || "";
-      } else {
-        remainingStr = l;
+// src/vendors/cloudflare-ai.js
+var TypedArrayProto = Object.getPrototypeOf(Uint8Array);
+function isArray(value) {
+  return Array.isArray(value) || value instanceof TypedArrayProto;
+}
+function arrLength(obj) {
+  return obj instanceof TypedArrayProto ? obj.length : obj.flat().reduce(
+    (acc, cur) => acc + (cur instanceof TypedArrayProto ? cur.length : 1),
+    0
+  );
+}
+function ensureShape(shape, value) {
+  if (shape.length === 0 && !isArray(value)) {
+    return;
+  }
+  const count = shape.reduce((acc, v) => {
+    if (!Number.isInteger(v)) {
+      throw new Error(
+        `expected shape to be array-like of integers but found non-integer element "${v}"`
+      );
+    }
+    return acc * v;
+  }, 1);
+  if (count != arrLength(value)) {
+    throw new Error(
+      `invalid shape: expected ${count} elements for shape ${shape} but value array has length ${value.length}`
+    );
+  }
+}
+function ensureType(type, value) {
+  if (isArray(value)) {
+    value.forEach((v) => ensureType(type, v));
+    return;
+  }
+  switch (type) {
+    case "bool": {
+      if (typeof value === "boolean") {
+        return;
       }
-    } catch (e) {
-      remainingStr = l;
+      break;
+    }
+    case "float16":
+    case "float32": {
+      if (typeof value === "number") {
+        return;
+      }
+      break;
+    }
+    case "int8":
+    case "uint8":
+    case "int16":
+    case "uint16":
+    case "int32":
+    case "uint32": {
+      if (Number.isInteger(value)) {
+        return;
+      }
+      break;
+    }
+    case "int64":
+    case "uint64": {
+      if (typeof value === "bigint") {
+        return;
+      }
+      break;
+    }
+    case "str": {
+      if (typeof value === "string") {
+        return;
+      }
+      break;
     }
   }
-  return {
-    content: contentStr,
-    pending: remainingStr
-  };
+  throw new Error(`unexpected type "${type}" with value "${value}".`);
 }
-async function requestCompletionsFromOpenAI(message, history, context, onStream) {
-  const key = context.openAIKeyFromContext();
-  const body = {
-    model: ENV.CHAT_MODEL,
-    ...context.USER_CONFIG.OPENAI_API_EXTRA_PARAMS,
-    messages: [...history || [], { role: "user", content: message }],
-    stream: onStream != null
-  };
-  const controller = new AbortController();
-  const { signal } = controller;
-  const timeout = 1e3 * 60 * 5;
-  setTimeout(() => controller.abort(), timeout);
-  let url = `${ENV.OPENAI_API_DOMAIN}/v1/chat/completions`;
-  let header = {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${key}`
-  };
-  if (ENV.AZURE_COMPLETIONS_API) {
-    url = ENV.AZURE_COMPLETIONS_API;
-    header["api-key"] = key;
-    delete header["Authorization"];
-    delete body.model;
+function serializeType(type, value) {
+  if (isArray(value)) {
+    return [...value].map((v) => serializeType(type, v));
   }
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: header,
-    body: JSON.stringify(body),
-    signal
-  });
-  if (onStream && resp.ok && resp.headers.get("content-type").indexOf("text/event-stream") !== -1) {
-    const reader = resp.body.getReader({ mode: "byob" });
-    const decoder = new TextDecoder("utf-8");
-    let data = { done: false };
-    let pendingText = "";
-    let contentFull = "";
-    let lengthDelta = 0;
-    let updateStep = 20;
-    while (data.done === false) {
-      try {
-        data = await reader.readAtLeast(4096, new Uint8Array(5e3));
-        pendingText += decoder.decode(data.value);
-        const content = extractContentFromStreamData(pendingText);
-        pendingText = content.pending;
-        lengthDelta += content.content.length;
-        contentFull = contentFull + content.content;
-        if (lengthDelta > updateStep) {
-          lengthDelta = 0;
-          updateStep += 5;
-          await onStream(`${contentFull}
-${ENV.I18N.message.loading}...`);
-        }
-      } catch (e) {
-        contentFull += `
-
-[ERROR]: ${e.message}
-
-`;
+  switch (type) {
+    case "str":
+    case "bool":
+    case "float16":
+    case "float32":
+    case "int8":
+    case "uint8":
+    case "int16":
+    case "uint16":
+    case "uint32":
+    case "int32": {
+      return value;
+    }
+    case "int64":
+    case "uint64": {
+      return value.toString();
+    }
+  }
+  throw new Error(`unexpected type "${type}" with value "${value}".`);
+}
+function deserializeType(type, value) {
+  if (isArray(value)) {
+    return value.map((v) => deserializeType(type, v));
+  }
+  switch (type) {
+    case "str":
+    case "bool":
+    case "float16":
+    case "float32":
+    case "int8":
+    case "uint8":
+    case "int16":
+    case "uint16":
+    case "uint32":
+    case "int32": {
+      return value;
+    }
+    case "int64":
+    case "uint64": {
+      return BigInt(value);
+    }
+  }
+  throw new Error(`unexpected type "${type}" with value "${value}".`);
+}
+var Tensor = class _Tensor {
+  constructor(type, value, opts = {}) {
+    this.type = type;
+    this.value = value;
+    ensureType(type, this.value);
+    if (opts.shape === void 0) {
+      if (isArray(this.value)) {
+        this.shape = [arrLength(value)];
+      } else {
+        this.shape = [];
+      }
+    } else {
+      this.shape = opts.shape;
+    }
+    ensureShape(this.shape, this.value);
+    this.name = opts.name || null;
+  }
+  static fromJSON(obj) {
+    const { type, shape, value, b64Value, name } = obj;
+    const opts = { shape, name };
+    if (b64Value !== void 0) {
+      const value2 = b64ToArray(b64Value, type)[0];
+      return new _Tensor(type, value2, opts);
+    } else {
+      return new _Tensor(type, deserializeType(type, value), opts);
+    }
+  }
+  toJSON() {
+    return {
+      type: this.type,
+      shape: this.shape,
+      name: this.name,
+      value: serializeType(this.type, this.value)
+    };
+  }
+};
+function b64ToArray(base64, type) {
+  const byteString = atob(base64);
+  const bytes = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i++) {
+    bytes[i] = byteString.charCodeAt(i);
+  }
+  const arrBuffer = new DataView(bytes.buffer).buffer;
+  switch (type) {
+    case "float32":
+      return new Float32Array(arrBuffer);
+    case "float64":
+      return new Float64Array(arrBuffer);
+    case "int32":
+      return new Int32Array(arrBuffer);
+    case "int64":
+      return new BigInt64Array(arrBuffer);
+    default:
+      throw Error(`invalid data type for base64 input: ${type}`);
+  }
+}
+function parseInputs(inputs) {
+  if (Array.isArray(inputs)) {
+    return inputs.map((input) => input.toJSON());
+  }
+  if (inputs !== null && typeof inputs === "object") {
+    return Object.keys(inputs).map((key) => {
+      let tensor = inputs[key].toJSON();
+      tensor.name = key;
+      return tensor;
+    });
+  }
+  throw new Error(`invalid inputs, must be Array<Tensor<any>> | TensorsObject`);
+}
+var InferenceSession = class {
+  constructor(binding, model, options = {}) {
+    this.binding = binding;
+    this.model = model;
+    this.options = options;
+  }
+  async run(inputs, options) {
+    const jsonInputs = parseInputs(inputs);
+    const body = JSON.stringify({
+      input: jsonInputs
+    });
+    const compressedReadableStream = new Response(body).body.pipeThrough(
+      new CompressionStream("gzip")
+    );
+    let routingModel = "default";
+    if (this.model === "@cf/meta/llama-2-7b-chat-int8") {
+      routingModel = "llama_2_7b_chat_int8";
+    }
+    const res = await this.binding.fetch("/run", {
+      method: "POST",
+      body: compressedReadableStream,
+      headers: {
+        "content-encoding": "gzip",
+        "cf-consn-model-id": this.model,
+        "cf-consn-routing-model": routingModel,
+        ...this.options?.extraHeaders || {}
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`API returned ${res.status}: ${await res.text()}`);
+    }
+    const { result } = await res.json();
+    const outputByName = {};
+    for (let i = 0, len = result.length; i < len; i++) {
+      const tensor = Tensor.fromJSON(result[i]);
+      const name = tensor.name || "output" + i;
+      outputByName[name] = tensor;
+    }
+    return outputByName;
+  }
+};
+var modelMappings = {
+  "text-classification": ["@cf/huggingface/distilbert-sst-2-int8"],
+  "text-embeddings": ["@cf/baai/bge-base-en-v1.5"],
+  "speech-recognition": ["@cf/openai/whisper"],
+  "image-classification": ["@cf/microsoft/resnet-50"],
+  "text-generation": ["@cf/meta/llama-2-7b-chat-int8"],
+  translation: ["@cf/meta/m2m100-1.2b"]
+};
+var chunkArray = (arr, size) => arr.length > size ? [arr.slice(0, size), ...chunkArray(arr.slice(size), size)] : [arr];
+var Ai = class {
+  constructor(binding, options = {}) {
+    this.binding = binding;
+    this.options = options;
+  }
+  async run(model, inputs) {
+    const session = new InferenceSession(
+      this.binding,
+      model,
+      this.options.sessionOptions || {}
+    );
+    let tensorInput;
+    let typedInputs;
+    let outputMap = (r) => r;
+    const tasks = Object.keys(modelMappings);
+    let task = "";
+    for (var t in tasks) {
+      if (modelMappings[tasks[t]].indexOf(model) !== -1) {
+        task = tasks[t];
         break;
       }
     }
-    return contentFull;
-  }
-  const result = await resp.json();
-  if (result.error?.message) {
-    if (ENV.DEBUG_MODE || ENV.DEV_MODE) {
-      throw new Error(`OpenAI API Error
-> ${result.error.message}
-Body: ${JSON.stringify(body)}`);
-    } else {
-      throw new Error(`OpenAI API Error
-> ${result.error.message}`);
+    switch (task) {
+      case "text-classification":
+        typedInputs = inputs;
+        tensorInput = [
+          new Tensor("str", [typedInputs.text], {
+            shape: [[typedInputs.text].length],
+            name: "input_text"
+          })
+        ];
+        outputMap = (r) => {
+          return [
+            {
+              label: "NEGATIVE",
+              score: r.logits.value[0][0]
+            },
+            {
+              label: "POSITIVE",
+              score: r.logits.value[0][1]
+            }
+          ];
+        };
+        break;
+      case "text-embeddings":
+        typedInputs = inputs;
+        tensorInput = [
+          new Tensor(
+            "str",
+            Array.isArray(typedInputs.text) ? typedInputs.text : [typedInputs.text],
+            {
+              shape: [
+                Array.isArray(typedInputs.text) ? typedInputs.text.length : [typedInputs.text].length
+              ],
+              name: "input_text"
+            }
+          )
+        ];
+        outputMap = (r) => {
+          if (Array.isArray(r.embeddings.value[0])) {
+            return {
+              shape: r.embeddings.shape,
+              data: r.embeddings.value
+            };
+          } else {
+            return {
+              shape: r.embeddings.shape,
+              data: chunkArray(r.embeddings.value, r.embeddings.shape[1])
+            };
+          }
+        };
+        break;
+      case "speech-recognition":
+        typedInputs = inputs;
+        tensorInput = [
+          new Tensor("uint8", typedInputs.audio, {
+            shape: [1, typedInputs.audio.length],
+            name: "audio"
+          })
+        ];
+        outputMap = (r) => {
+          return { text: r.name.value[0] };
+        };
+        break;
+      case "text-generation":
+        typedInputs = inputs;
+        let prompt = "";
+        if (typedInputs.messages === void 0) {
+          prompt = typedInputs.prompt;
+        } else {
+          for (let i = 0; i < typedInputs.messages.length; i++) {
+            const inp = typedInputs.messages[i];
+            switch (inp.role) {
+              case "system":
+                prompt += "[INST]<<SYS>>" + inp.content + "<</SYS>>[/INST]\n";
+                break;
+              case "user":
+                prompt += "[INST]" + inp.content + "[/INST]\n";
+                break;
+              case "assistant":
+                prompt += inp.content + "\n";
+                break;
+              default:
+                throw new Error("Invalid role: " + inp.role);
+            }
+          }
+        }
+        tensorInput = [
+          new Tensor("str", [prompt], {
+            shape: [1],
+            name: "INPUT_0"
+          }),
+          new Tensor("uint32", [256], {
+            // sequence length
+            shape: [1],
+            name: "INPUT_1"
+          })
+        ];
+        outputMap = (r) => {
+          return { response: r.name.value[0] };
+        };
+        break;
+      case "translation":
+        typedInputs = inputs;
+        tensorInput = [
+          new Tensor("str", [typedInputs.text], {
+            shape: [1, 1],
+            name: "text"
+          }),
+          new Tensor("str", [typedInputs.source_lang || "en"], {
+            shape: [1, 1],
+            name: "source_lang"
+          }),
+          new Tensor("str", [typedInputs.target_lang], {
+            shape: [1, 1],
+            name: "target_lang"
+          })
+        ];
+        outputMap = (r) => {
+          return { translated_text: r.name.value[0] };
+        };
+        break;
+      default:
+        throw new Error(`No such model ${model} or task`);
     }
+    const output = await session.run(tensorInput);
+    return outputMap(output);
   }
-  setTimeout(() => updateBotUsage(result.usage, context).catch(console.error), 0);
-  return result.choices[0].message.content;
+};
+
+// src/workers-ai.js
+function isWorkersAIEnable(context) {
+  return AI && AI.fetch;
 }
-async function requestImageFromOpenAI(prompt, context) {
-  const key = context.openAIKeyFromContext();
-  const body = {
-    prompt,
-    n: 1,
-    size: "512x512"
+async function requestCompletionsFromWorkersAI(message, history, context, onStream) {
+  const ai = new Ai(AI);
+  const model = ENV.WORKERS_AI_MODEL;
+  const request = {
+    messages: [...history || [], { role: "user", content: message }]
   };
-  const resp = await fetch(`${ENV.OPENAI_API_DOMAIN}/v1/images/generations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${key}`
-    },
-    body: JSON.stringify(body)
-  }).then((res) => res.json());
-  if (resp.error?.message) {
-    throw new Error(`OpenAI API Error
-> ${resp.error.message}`);
-  }
-  return resp.data[0].url;
+  const response = await ai.run(model, request);
+  return response.response;
 }
-async function requestCompletionsFromChatGPT(text, context, modifier, onStream) {
-  const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
-  const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
-  let history = await loadHistory(historyKey, context);
-  if (modifier) {
-    const modifierData = modifier(history, text);
-    history = modifierData.history;
-    text = modifierData.text;
-  }
-  const { real: realHistory, original: originalHistory } = history;
-  const answer = await requestCompletionsFromOpenAI(text, realHistory, context, onStream);
-  if (!historyDisable) {
-    originalHistory.push({ role: "user", content: text || "", cosplay: context.SHARE_CONTEXT.role || "" });
-    originalHistory.push({ role: "assistant", content: answer, cosplay: context.SHARE_CONTEXT.role || "" });
-    await DATABASE.put(historyKey, JSON.stringify(originalHistory)).catch(console.error);
-  }
-  return answer;
-}
-async function updateBotUsage(usage, context) {
-  if (!ENV.ENABLE_USAGE_STATISTICS) {
-    return;
-  }
-  let dbValue = JSON.parse(await DATABASE.get(context.SHARE_CONTEXT.usageKey));
-  if (!dbValue) {
-    dbValue = {
-      tokens: {
-        total: 0,
-        chats: {}
-      }
-    };
-  }
-  dbValue.tokens.total += usage.total_tokens;
-  if (!dbValue.tokens.chats[context.SHARE_CONTEXT.chatId]) {
-    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] = usage.total_tokens;
-  } else {
-    dbValue.tokens.chats[context.SHARE_CONTEXT.chatId] += usage.total_tokens;
-  }
-  await DATABASE.put(context.SHARE_CONTEXT.usageKey, JSON.stringify(dbValue));
-}
+
+// src/chat.js
 async function loadHistory(key, context) {
   const initMessage = { role: "system", content: context.USER_CONFIG.SYSTEM_INIT_MESSAGE };
   const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
@@ -1015,9 +1605,34 @@ async function loadHistory(key, context) {
   }
   return { real: history, original };
 }
-
-// src/chat.js
-async function chatWithOpenAI(text, context, modifier) {
+function loadLLM(context) {
+  if (isOpenAIEnable(context)) {
+    return requestCompletionsFromOpenAI;
+  }
+  if (isWorkersAIEnable(context)) {
+    return requestCompletionsFromWorkersAI;
+  }
+  return null;
+}
+async function requestCompletionsFromLLM(text, context, llm, modifier, onStream) {
+  const historyDisable = ENV.AUTO_TRIM_HISTORY && ENV.MAX_HISTORY_LENGTH <= 0;
+  const historyKey = context.SHARE_CONTEXT.chatHistoryKey;
+  let history = await loadHistory(historyKey, context);
+  if (modifier) {
+    const modifierData = modifier(history, text);
+    history = modifierData.history;
+    text = modifierData.text;
+  }
+  const { real: realHistory, original: originalHistory } = history;
+  const answer = await llm(text, realHistory, context, onStream);
+  if (!historyDisable) {
+    originalHistory.push({ role: "user", content: text || "", cosplay: context.SHARE_CONTEXT.role || "" });
+    originalHistory.push({ role: "assistant", content: answer, cosplay: context.SHARE_CONTEXT.role || "" });
+    await DATABASE.put(historyKey, JSON.stringify(originalHistory)).catch(console.error);
+  }
+  return answer;
+}
+async function chatWithLLM(text, context, modifier) {
   try {
     try {
       const msg = await sendMessageToTelegramWithContext(context)(ENV.I18N.message.loading).then((r) => r.json());
@@ -1042,7 +1657,11 @@ async function chatWithOpenAI(text, context, modifier) {
         }
       };
     }
-    const answer = await requestCompletionsFromChatGPT(text, context, modifier, onStream);
+    const llm = loadLLM(context);
+    if (llm === null) {
+      return sendMessageToTelegramWithContext(context)("LLM is not enable");
+    }
+    const answer = await requestCompletionsFromLLM(text, context, llm, modifier, onStream);
     context.CURRENT_CHAT_CONTEXT.parse_mode = parseMode;
     if (ENV.SHOW_REPLY_BUTTON && context.CURRENT_CHAT_CONTEXT.message_id) {
       try {
@@ -1376,7 +1995,7 @@ async function commandRegenerate(message, command, subcommand, context) {
     }
     return { history: { real, original }, text: nextText };
   };
-  return chatWithOpenAI(null, context, mf);
+  return chatWithLLM(null, context, mf);
 }
 async function commandEcho(message, command, subcommand, context) {
   let msg = "<pre>";
@@ -1514,9 +2133,6 @@ async function msgIgnoreOldMessage(message, context) {
   return null;
 }
 async function msgCheckEnvIsReady(message, context) {
-  if (context.openAIKeyFromContext() === null) {
-    return sendMessageToTelegramWithContext(context)("OpenAI API Key Not Set");
-  }
   if (!DATABASE) {
     return sendMessageToTelegramWithContext(context)("DATABASE Not Set");
   }
@@ -1559,7 +2175,12 @@ async function msgHandleGroupMessage(message, context) {
   if (!message.text) {
     return new Response("Non text message", { status: 200 });
   }
-  const botName = context.SHARE_CONTEXT.currentBotName;
+  let botName = context.SHARE_CONTEXT.currentBotName;
+  if (!botName) {
+    const res = await getBot(context.SHARE_CONTEXT.currentBotToken);
+    context.SHARE_CONTEXT.currentBotName = res.info.name;
+    botName = res.info.name;
+  }
   if (botName) {
     let mentioned = false;
     if (message.reply_to_message) {
@@ -1639,7 +2260,7 @@ async function msgHandleRole(message, context) {
   }
 }
 async function msgChatWithOpenAI(message, context) {
-  return chatWithOpenAI(message.text, context, null);
+  return chatWithLLM(message.text, context, null);
 }
 async function msgProcessByChatType(message, context) {
   const handlerMap = {
@@ -1835,7 +2456,7 @@ async function defaultIndexAction() {
 }
 async function gpt3TokenTest(request) {
   const text = new URL(request.url).searchParams.get("text") || "Hello World";
-  const counter = await gpt3TokensCounter();
+  const counter = await tokensCounter();
   const HTML = renderHTML(`
     <h1>ChatGPT-Telegram-Workers</h1>
     <br/>

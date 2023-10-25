@@ -38,13 +38,9 @@
 
 ## 更新日志
 
-- v1.5.0
-  - perf: 调整命令顺序
-  - perf: openai发送请求前前发送loading消息
-  - feat: 添加流式输出支持(默认开启)。使用`STREAM_MODE=false`关闭
-  - feat: 添加安全模式(默认开启)解决TG无限重试的问题
-  - feat: 增加对多个KEY的适配，随机选择KEY使用
-  - feat: 增加快捷按钮 `/new`, `/redo`
+- v1.6.0
+  - 添加[`workers ai`](https://developers.cloudflare.com/workers-ai/)支持,具体配置查看[配置文档](./doc/CONFIG.md)
+  - 优化openai流模式解析器
 
 其他更新日志见[CHANGELOG.md](./doc/CHANGELOG.md)
 
@@ -52,9 +48,6 @@
 
 ~~新建多个机器人绑定到同一个workers，设置`TELEGRAM_AVAILABLE_TOKENS`,每个机器人赋予不同的`SYSTEM_INIT_MESSAGE`~~。开启群聊模式，新建多个群聊，每个群内只有自己个机器人，每个群的机器人由不同的`SYSTEM_INIT_MESSAGE`，比如翻译专家，文案专家，代码专家。然后每次根据自己的需求和不同的群里的机器人聊天，这样就不用经常切换配置属性。
 
-## 支持我
-
-如果使用openai期间需要绑卡可以使用我的onekey的邀请码: <https://card.onekey.so/?i=QO19EC> 如果有其他问题可以加群交流。
 
 ## 特别鸣谢
 
