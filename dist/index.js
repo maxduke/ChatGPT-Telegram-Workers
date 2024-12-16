@@ -31,6 +31,7 @@ class EnvironmentConfig {
   HIDE_COMMAND_BUTTONS = [];
   SHOW_REPLY_BUTTON = false;
   EXTRA_MESSAGE_CONTEXT = false;
+  EXTRA_MESSAGE_MEDIA_COMPATIBLE = ["image"];
   STREAM_MODE = true;
   SAFE_MODE = true;
   DEBUG_MODE = false;
@@ -192,8 +193,8 @@ class ConfigMerger {
     }
   }
 }
-const BUILD_TIMESTAMP = 1733987738;
-const BUILD_VERSION = "e312e62";
+const BUILD_TIMESTAMP = 1734333416;
+const BUILD_VERSION = "36b3dfe";
 function createAgentUserConfig() {
   return Object.assign(
     {},
@@ -596,12 +597,6 @@ class GroupMention {
     }
     if (!isMention) {
       throw new Error("Not mention");
-    }
-    if (ENV.EXTRA_MESSAGE_CONTEXT && !replyMe && message.reply_to_message && message.reply_to_message.text) {
-      if (message.text) {
-        message.text = `${message.reply_to_message.text}
-${message.text}`;
-      }
     }
     return null;
   };
@@ -1416,9 +1411,6 @@ class OpenAI extends OpenAIBase {
   model = (ctx) => {
     return ctx.OPENAI_CHAT_MODEL;
   };
-  render = async (item) => {
-    return renderOpenAIMessage(item);
-  };
   request = async (params, context, onStream) => {
     const { prompt, messages } = params;
     const url = `${context.OPENAI_API_BASE}/chat/completions`;
@@ -2165,18 +2157,30 @@ function extractImageFileID(message) {
   return null;
 }
 async function extractUserMessageItem(message, context) {
-  const text = message.text || message.caption || "";
+  let text = message.text || message.caption || "";
+  const urls = await extractImageURL(extractImageFileID(message), context).then((u) => u ? [u] : []);
+  if (ENV.EXTRA_MESSAGE_CONTEXT && message.reply_to_message && message.reply_to_message.from && `${message.reply_to_message.from.id}` !== `${context.SHARE_CONTEXT.botId}`) {
+    text = `${text}
+The following is the referenced context: ${message.reply_to_message.text || message.reply_to_message.caption || ""}`;
+    if (ENV.EXTRA_MESSAGE_MEDIA_COMPATIBLE.includes("image") && message.reply_to_message.photo) {
+      const url = await extractImageURL(extractImageFileID(message.reply_to_message), context);
+      if (url) {
+        urls.push(url);
+      }
+    }
+  }
   const params = {
     role: "user",
     content: text
   };
-  const url = await extractImageURL(extractImageFileID(message), context);
-  if (url) {
+  if (urls.length > 0) {
     const contents = new Array();
     if (text) {
       contents.push({ type: "text", text });
     }
-    contents.push({ type: "image", image: url });
+    for (const url of urls) {
+      contents.push({ type: "image", image: url });
+    }
     params.content = contents;
   }
   return params;
@@ -2331,9 +2335,9 @@ function formatInput(input, type) {
   if (type === "json") {
     return JSON.parse(input);
   } else if (type === "space-separated") {
-    return input.split(/\s+/);
+    return input.trim().split(" ").filter(Boolean);
   } else if (type === "comma-separated") {
-    return input.split(/\s*,\s*/);
+    return input.split(",").map((item) => item.trim()).filter(Boolean);
   } else {
     return input;
   }
@@ -3063,7 +3067,7 @@ class Router {
     return path.replace(/\/+(\/|$)/g, "$1");
   }
   createRouteRegex(path) {
-    return new RegExp(`^${path.replace(/(\/?\.?):(\w+)\+/g, "($1(?<$2>*))").replace(/(\/?\.?):(\w+)/g, "($1(?<$2>[^$1/]+?))").replace(/\./g, "\\.").replace(/(\/?)\*/g, "($1.*)?")}/*$`);
+    return new RegExp(`^${path.replace(/\\/g, "\\\\").replace(/(\/?\.?):(\w+)\+/g, "($1(?<$2>*))").replace(/(\/?\.?):(\w+)/g, "($1(?<$2>[^$1/]+?))").replace(/\./g, "\\.").replace(/(\/?)\*/g, "($1.*)?")}/*$`);
   }
   async fetch(request, ...args) {
     try {
