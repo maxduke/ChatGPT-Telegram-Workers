@@ -33,11 +33,13 @@ export function extractImageContent(imageData: DataItemContent | URL): ImageReal
             return { base64: imageData };
         }
     }
-    if (imageData instanceof Uint8Array) {
-        return { base64: Buffer.from(imageData).toString('base64') };
-    }
-    if (Buffer.isBuffer(imageData)) {
-        return { base64: Buffer.from(imageData).toString('base64') };
+    if (typeof Buffer !== 'undefined') {
+        if (imageData instanceof Uint8Array) {
+            return { base64: Buffer.from(imageData).toString('base64') };
+        }
+        if (Buffer.isBuffer(imageData)) {
+            return { base64: Buffer.from(imageData).toString('base64') };
+        }
     }
     return {};
 }
@@ -50,8 +52,7 @@ export async function convertStringToResponseMessages(input: Promise<string>): P
     };
 }
 
-export type RemoteParser = (url: string) => Promise<string[]>;
-export async function loadModelsList(raw: string, remoteLoader?: RemoteParser): Promise<string[]> {
+export async function loadModelsList(raw: string, remoteLoader?: (url: string) => Promise<string[]>): Promise<string[]> {
     if (!raw) {
         return [];
     }
@@ -66,5 +67,16 @@ export async function loadModelsList(raw: string, remoteLoader?: RemoteParser): 
     if (raw.startsWith('http') && remoteLoader) {
         return await remoteLoader(raw);
     }
-    return [];
+    return [raw];
+}
+
+export function bearerHeader(token: string | null, stream?: boolean): Record<string, string> {
+    const res: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+    };
+    if (stream !== undefined) {
+        res.Accept = stream ? 'text/event-stream' : 'application/json';
+    }
+    return res;
 }

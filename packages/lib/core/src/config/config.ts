@@ -106,7 +106,7 @@ export class OpenAIConfig {
     OPENAI_API_KEY: string[] = [];
     // OpenAI的模型名称
     OPENAI_CHAT_MODEL = 'gpt-4o-mini';
-    // OpenAI API BASE ``
+    // OpenAI API BASE
     OPENAI_API_BASE = 'https://api.openai.com/v1';
     // OpenAI API Extra Params
     OPENAI_API_EXTRA_PARAMS: Record<string, any> = {};
@@ -133,13 +133,13 @@ export class AzureConfig {
     // Azure Resource Name
     AZURE_RESOURCE_NAME: string | null = null;
     // Azure Chat Model
-    AZURE_CHAT_MODEL: string | null = null;
+    AZURE_CHAT_MODEL: string = 'gpt-4o-mini';
     // Azure Image Model
-    AZURE_IMAGE_MODEL: string | null = null;
+    AZURE_IMAGE_MODEL: string = 'dall-e-3';
     // Azure API version
     AZURE_API_VERSION = '2024-06-01';
     // Azure Chat Models List
-    AZURE_CHAT_MODELS_LIST = '[]';
+    AZURE_CHAT_MODELS_LIST = '';
 }
 
 // -- Workers 配置 --
@@ -149,11 +149,13 @@ export class WorkersConfig {
     // Cloudflare Token
     CLOUDFLARE_TOKEN: string | null = null;
     // Text Generation Model
-    WORKERS_CHAT_MODEL = '@cf/mistral/mistral-7b-instruct-v0.1 ';
+    WORKERS_CHAT_MODEL = '@cf/qwen/qwen1.5-7b-chat-awq';
     // Text-to-Image Model
-    WORKERS_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
+    WORKERS_IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell';
     // Workers Chat Models List, When empty, will use the api to get the list
     WORKERS_CHAT_MODELS_LIST = '';
+    // Workers Image Models List, When empty, will use the api to get the list
+    WORKERS_IMAGE_MODELS_LIST = '';
 }
 
 // -- Gemini 配置 --
@@ -201,7 +203,7 @@ export class AnthropicConfig {
     // Anthropic api model
     ANTHROPIC_CHAT_MODEL = 'claude-3-5-haiku-latest';
     // Anthropic api chat models list
-    ANTHROPIC_CHAT_MODELS_LIST = `["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"]`;
+    ANTHROPIC_CHAT_MODELS_LIST = '';
 }
 
 export class DefineKeys {
