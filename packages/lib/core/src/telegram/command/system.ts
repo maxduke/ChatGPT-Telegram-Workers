@@ -1,5 +1,5 @@
 import type { HistoryItem, HistoryModifierResult, UserMessageItem } from '#/agent';
-import type {AgentUserConfigKey, WorkerContext} from '#/config';
+import type { AgentUserConfigKey, WorkerContext } from '#/config';
 import type * as Telegram from 'telegram-bot-api-types';
 import type { CommandHandler } from './types';
 import { loadChatLLM, loadImageGen } from '#/agent';
@@ -15,9 +15,11 @@ export class ImgCommandHandler implements CommandHandler {
     handle = async (message: Telegram.Message, subcommand: string, context: WorkerContext): Promise<Response> => {
         const sender = MessageSender.fromMessage(context.SHARE_CONTEXT.botToken, message);
         if (subcommand === '') {
+            const imgAgent = loadImageGen(context.USER_CONFIG);
+            const text = `${ENV.I18N.command.help.img}\n\n${imgAgent?.name || 'Nan'} | ${imgAgent?.model(context.USER_CONFIG) || 'Nan'}`;
             const params: Telegram.SendMessageParams = {
                 chat_id: message.chat.id,
-                text: ENV.I18N.command.help.img,
+                text,
                 reply_markup: {
                     inline_keyboard: [[
                         {
@@ -294,9 +296,10 @@ export class ModelsCommandHandler implements CommandHandler {
     handle = async (message: Telegram.Message, subcommand: string, context: WorkerContext): Promise<Response> => {
         const sender = MessageSender.fromMessage(context.SHARE_CONTEXT.botToken, message);
         const chatAgent = loadChatLLM(context.USER_CONFIG);
+        const text = `${chatAgent?.name || 'Nan'} | ${chatAgent?.model(context.USER_CONFIG) || 'Nan'}`;
         const params: Telegram.SendMessageParams = {
             chat_id: message.chat.id,
-            text: `${chatAgent?.name || 'Nan'} | ${chatAgent?.model(context.USER_CONFIG) || 'Nan'}`,
+            text,
             reply_markup: {
                 inline_keyboard: [[
                     {
