@@ -48,12 +48,14 @@ export interface RequestTemplate {
         content: { [key: string]: string } | string; // content为对象时Key为固定值，Value支持插值。content为字符串时支持插值
     };
     response: {
-        content: { // 必选, 当请求成功时的处理
+        content: {
+            // 必选, 当请求成功时的处理
             input_type: TemplateResponseType;
             output_type: TemplateOutputType;
             output: string;
         };
-        error: { // 必选, 当请求失败时的处理
+        error: {
+            // 必选, 当请求失败时的处理
             input_type: TemplateResponseType;
             output_type: TemplateOutputType;
             output: string;
@@ -83,7 +85,11 @@ function interpolateObject(obj: any, data: any): any {
 
 export type ExecuteRequestResult = { content: string; type: TemplateOutputType } | { content: Blob; type: 'image' };
 
-export async function executeRequest(template: RequestTemplate, data: any): Promise<ExecuteRequestResult> {
+export async function executeRequest(
+    template: RequestTemplate,
+    data: any,
+    fetchImpl: typeof fetch = fetch,
+): Promise<ExecuteRequestResult> {
     const urlRaw = interpolate(template.url, data, encodeURIComponent);
     const url = new URL(urlRaw);
 
@@ -119,7 +125,7 @@ export async function executeRequest(template: RequestTemplate, data: any): Prom
         }
     }
 
-    const response = await fetch(url, {
+    const response = await fetchImpl(url, {
         method,
         headers,
         body,
@@ -137,7 +143,11 @@ export async function executeRequest(template: RequestTemplate, data: any): Prom
         }
     };
     if (!response.ok) {
-        const content = await renderOutput(template.response?.error?.input_type, template.response.error?.output, response);
+        const content = await renderOutput(
+            template.response?.error?.input_type,
+            template.response.error?.output,
+            response,
+        );
         return {
             type: template.response.error.output_type,
             content,
@@ -152,7 +162,11 @@ export async function executeRequest(template: RequestTemplate, data: any): Prom
             content: await response.blob(),
         };
     }
-    const content = await renderOutput(template.response.content?.input_type, template.response.content?.output, response);
+    const content = await renderOutput(
+        template.response.content?.input_type,
+        template.response.content?.output,
+        response,
+    );
     return {
         type: template.response.content.output_type,
         content,
@@ -165,7 +179,10 @@ export function formatInput(input: string, type: TemplateInputType): string | st
     } else if (type === 'space-separated') {
         return input.trim().split(' ').filter(Boolean);
     } else if (type === 'comma-separated') {
-        return input.split(',').map(item => item.trim()).filter(Boolean);
+        return input
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean);
     } else {
         return input;
     }

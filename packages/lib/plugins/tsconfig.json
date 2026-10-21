@@ -2,7 +2,7 @@
     "extends": "../../../tsconfig.json",
     "compilerOptions": {
         "rootDir": "./src",
-        "types": ["node", "jest"],
+        "types": ["node", "vitest/globals"],
         "outDir": "./dist"
     },
     "include": ["src/**/*"]

@@ -1,314 +1,97 @@
-# 配置
+# 配置说明
 
-推荐在Workers配置界面填写环境变量， 而不是直接修改js代码中的变量
+配置分为两部分:
 
-## KV配置
+1. **环境变量 / 绑定** —— 启动 bot 所需的最小信息。
+2. **管理后台** —— 其余全部配置(AI 提供商、提示词、权限、插件等),以单个 JSON 文档存于 KV。
 
-| KEY      | 特殊说明                                 |
-|:---------|--------------------------------------|
-| DATABASE | 先新建KV，新建的时候名字随意，然后绑定的时候必须设定为DATABASE |
+## 1. 环境变量
 
-## 系统配置
+| 变量 | 必填 | 说明 |
+|---|---|---|
+| `TELEGRAM_TOKEN` | 是 | [@BotFather](https://t.me/BotFather) 获取的 Bot Token,单个。 |
+| `ADMIN_ID` | 建议 | 你的 Telegram 用户 id。用于管理后台授权(校验 Mini App `initData`),并限制私聊命令仅你可使用。 |
+| `ADMIN_PASSWORD` | 否 | 在 Telegram 之外打开管理页时的备用密码。未设置则禁用密码登录(仅 Mini App)。 |
+| `PUBLIC_BASE_URL` | 否 | 部署的公网 HTTPS 地址。优先于管理面板里保存的值;未设置时,第一次 `/init` 会把探测到的域名自动保存到管理面板配置。 |
 
-为每个用户通用的配置，只能在Workers配置界面或者toml中配置填写，不支持通过Telegram发送消息来修改。
+绑定(Cloudflare / 运行时):
 
-> `array string`: 数组为空字符串，表示没有设置值，如果需要设置值，设置为`'value1,value2'`，多个值用逗号分隔。
+| 绑定 | 必填 | 说明 |
+|---|---|---|
+| `DATABASE` | 是 | KV 命名空间,用于聊天历史、缓存与全局配置 JSON。 |
+| `AI` | 否 | Workers AI 绑定,仓库自带的 `wrangler.jsonc` 已声明。仅在使用 `workers` 提供商、且不想填 account id + token 时需要。 |
+| `API_GUARD` | 否 | 可选的 worker,用于保护 webhook(`/telegram/:token/safehook`)。 |
 
-### 基础配置
+> 原有环境变量(`OPENAI_API_KEY`、`TELEGRAM_AVAILABLE_TOKENS`、`LOCK_USER_CONFIG_KEYS`、`CUSTOM_COMMAND_*`、`PLUGIN_COMMAND_*` 等)**已全部移除**,请在管理后台中配置。
 
-| KEY                       | 名称        | 默认值      | 描述              |
-|---------------------------|-----------|----------|-----------------|
-| LANGUAGE                  | 语言        | `zh-cn`  | 设置语言            |
-| UPDATE_BRANCH             | 更新分支      | `master` | 检查更新的分支         |
-| CHAT_COMPLETE_API_TIMEOUT | 聊天完成API超时 | `0`      | AI对话API的超时时间（秒） |
+## 2. 管理后台
 
-### Telegram配置
+访问 `https://<你的域名>/admin`。
 
-| KEY                       | 名称             | 默认值                         | 描述                                      |
-|---------------------------|----------------|-----------------------------|-----------------------------------------|
-| TELEGRAM_API_DOMAIN       | Telegram API域名 | `https://api.telegram.org/` | Telegram API的域名                         |
-| TELEGRAM_AVAILABLE_TOKENS | 可用的Telegram令牌  | `''`(array string)          | 允许访问的Telegram Token，设置时以逗号分隔            |
-| DEFAULT_PARSE_MODE        | 默认解析模式         | `Markdown`                  | 默认消息解析模式                                |
-| I_AM_A_GENEROUS_PERSON    | 允许所有人使用        | `false`                     | 是否允许所有人使用                               |
-| CHAT_WHITE_LIST           | 聊天白名单          | `''`(array string)          | 允许使用的聊天ID白名单                            |
-| LOCK_USER_CONFIG_KEYS     | 锁定的用户配置键       | 默认值为所有API的URL               | 防止被替换导致token泄露的配置键                      |
-| TELEGRAM_BOT_NAME         | Telegram机器人名称  | `''`(array string)          | 允许访问的Telegram Token对应的Bot Name，设置时以逗号分隔 |
-| CHAT_GROUP_WHITE_LIST     | 群组白名单          | `''`(array string)          | 允许使用的群组ID白名单                            |
-| GROUP_CHAT_BOT_ENABLE     | 群组机器人开关        | `true`                      | 是否启用群组机器人                               |
-| GROUP_CHAT_BOT_SHARE_MODE | 群组机器人共享模式      | `true`                      | 开启后同个群组的人使用同一个聊天上下文                     |
+- 在 Telegram 内,通过 `/admin` 命令以 Mini App 打开。bot 会校验 Telegram `initData` 并匹配 `ADMIN_ID`,无需密码。
+- 在 Telegram 外,若设置了 `ADMIN_PASSWORD` 则用密码登录。
 
-> IMPORTANT: 必须把群ID加到白名单`CHAT_GROUP_WHITE_LIST`才能使用, 否则任何人都可以把你的机器人加到群组中，然后消耗你的配额。
+### 标签页
 
-> IMPORTANT: 受限TG的隐私安全策略，如果你的群组是公开群组或超过2000人，请将机器人设置为`管理员`，否则机器人无法响应`@机器人`的聊天消息。
+- **Chat Providers** —— 添加聊天 AI 提供商。每个提供商填写 Name、Base URL、API Key、**API format**(协议)与**允许使用的模型列表**。点 **Fetch models** 可从端点(以 `/models` 结尾)拉取模型并点选加入;端点不支持模型列表时用 **+ Add model** 手动输入。选中一个模型作为当前使用项,并指定默认提供商。
+- **Image Providers** —— 同上,用于图片生成。生成参数因协议和模型而异(OpenAI 的 `size`/`quality`/`style`,Workers AI 各模型的 `negative_prompt`/`width`/`height`/`num_steps`/`guidance` 等),因此每个 provider 有自己的 **Extra Params** JSON,合并进请求体;`prompt` 始终以代码传入值为准。
+- **Settings** —— 原环境变量形式的全局选项:公网 Base URL、系统提示词、权限、历史长度、流式等。
+- **Plugins** —— 请求模板命令(JSON 模板或 URL),可带独立的环境变量映射。
+- **Custom Commands** —— 快捷指令。Value 以 `/setenv`、`/setenvs`、`/delenv` 或 JSON 开头时,作为配置补丁写回全局配置;其余按文本别名展开为另一条命令。
 
-> IMPORTANT: 必须在botfather中设置`/setprivacy`为`Disable`，否则机器人无法响应`@机器人`的聊天消息。
+保存时会把整份配置以 JSON 写入 KV 键 `config:global`。
 
-> 如果您想将`DEFAULT_PARSE_MODE`设置为`MarkdownV2`，您需要使用workers-mk2版本。
+### 快捷指令(修改配置)
 
-#### 锁定配置 `LOCK_USER_CONFIG_KEYS`
+Custom Commands 可以直接修改全局配置,用来快速切换默认提供商或模型,效果等同旧版的 `CUSTOM_COMMAND_*`:
 
-> IMPORTANT: 如果你遇到`Key XXX is locked`的错误，说明你的配置被锁定了，需要解锁才能修改。
+| Command | Value | 说明 |
+|---|---|---|
+| `/gpt4` | `/setenvs {"defaultChatProvider":"openai"}` | 切换默认聊天提供商 |
+| `/fast` | `/setenv settings.systemInitMessage=你是简洁的助手` | 用点分路径修改单个配置项 |
+| `/img-openai` | `/setenvs {"defaultImageProvider":"openai"}` | 切换默认图片提供商 |
+| `/reset-prompt` | `/delenv settings.systemInitMessage` | 将某项恢复为默认值 |
 
-`LOCK_USER_CONFIG_KEYS`的默认值为所有API的BASE URL。为了防止用户替换API BASE URL导致token泄露，所以默认情况下会锁定所有API的BASE URL。如果你想解锁某个API的BASE URL，可以将其从`LOCK_USER_CONFIG_KEYS`中删除。
-`LOCK_USER_CONFIG_KEYS`是一个字符串数组，默认值为：
+支持的写法:
+
+- `/setenv KEY=VALUE` —— `KEY` 用点分路径,如 `settings.systemInitMessage`、`defaultChatProvider`。
+- `/setenvs {json}` —— JSON 对象补丁,顶层键 `settings` 按键合并,`chatProviders`/`imageProviders`/`plugins`/`customCommands` 按数组元素 `id` 合并,其余覆盖。
+- `/delenv KEY` —— `settings.xxx` 恢复默认值,`defaultChatProvider`/`defaultImageProvider` 置空。
+- 直接以 `{` 开头的裸 JSON 对象,等价于 `/setenvs`。
+
+快捷指令会写入全局配置,因此仅 `ADMIN_ID` 本人或群管理员可以触发;非管理员调用会返回权限错误。它改变的是全局默认值,不提供"每个聊天独立配置"。
+
+### API format
+
+提供商不再绑定厂商列表,选择与端点匹配的 API format 即可:
+
+| API format | 协议 | 说明 |
+|---|---|---|
+| `chat-completions` | OpenAI Chat Completions | `/v1/chat/completions`,OpenAI 兼容端点默认选它 |
+| `anthropic-messages` | Anthropic Messages | `/v1/messages` |
+| `responses` | OpenAI Responses | `/v1/responses` |
+| `workers` | Cloudflare Workers AI | 使用 `AI` 绑定;无绑定时回退 account id + token |
+
+图片的 API format 为 `images`(OpenAI `/v1/images/generations`)与 `workers`。
+
+`workers` 不读取 **Base URL** 与 **API Key**:端点和凭据来自 `AI` 绑定(无绑定时用 `Account ID` / `API Token` 两个协议字段),因此表单不会展示这两个通用字段。已部署 `AI` 绑定时,`Account ID` 与 `API Token` 均可留空、提供商即可正常工作;无绑定时必须填 `Account ID` + `API Token`,两者都缺的 provider 会被跳过,而不是留到首次调用才报错。
+
+**Fetch models** 在有绑定时通过绑定列模型,否则回退到账号级 Cloudflare API;两种方式都会按任务类型区分,聊天页只给文本生成模型,图片页只给图片生成模型。
+
+部分较新的图片模型(`@cf/black-forest-labs/flux-2-*` 系列)只接受 `multipart/form-data` 请求体、不接受 JSON,用 JSON 会报 `5006: required properties at '/' are 'multipart'`。机器人会自动识别这些模型并按 multipart 编码;如果某个尚未覆盖的模型也报这个错,会自动改用 multipart 重试一次并记住它。
+
+Name 可任意填写(如 `DeepSeek`、`Groq`、`Mistral`),任何 OpenAI 兼容端点都用 `chat-completions`。旧的厂商命名配置在加载时会自动迁移。
+
+## 3. `/init`
+
+在管理后台配置好 `publicBaseUrl` 后,在首页点击 **Bind Webhook**(或访问一次 `/init`)以注册 webhook 与命令菜单:
 
 ```
-OPENAI_API_BASE,GOOGLE_COMPLETIONS_API,MISTRAL_API_BASE,COHERE_API_BASE,ANTHROPIC_API_BASE,AZURE_COMPLETIONS_API,AZURE_DALLE_API
+https://<你的域名>/init
 ```
 
-### 历史记录配置
+网页均由 `@chatgpt-telegram-workers/web` 包提供:`/`(首页 + 使用说明)、`/admin`(管理后台)、`/interpolate`(插值模板测试页)。
 
-| KEY                | 名称       | 默认值       | 描述                  |
-|--------------------|----------|-----------|---------------------|
-| AUTO_TRIM_HISTORY  | 自动裁剪历史记录 | `true`    | 为避免4096字符限制，自动裁剪消息  |
-| MAX_HISTORY_LENGTH | 最大历史记录长度 | `20`      | 保留的最大历史记录条数         |
-| MAX_TOKEN_LENGTH   | 最大令牌长度   | `-1`（不裁剪） | 以现在模型的价格只需要裁剪消息条数即可 |
+## 本地 / Docker
 
-### 特性开关
-
-| KEY                   | 名称       | 默认值                | 描述              |
-|-----------------------|----------|--------------------|-----------------|
-| HIDE_COMMAND_BUTTONS  | 隐藏命令按钮   | `''`(array string) | 修改后需要重新init     |
-| SHOW_REPLY_BUTTON     | 显示快捷回复按钮 | `false`            | 是否显示快捷回复按钮      |
-| EXTRA_MESSAGE_CONTEXT | 额外消息上下文  | `false`            | 引用的消息也会假如上下文    |
-| STREAM_MODE           | 流模式      | `true`             | 打字机模式           |
-| SAFE_MODE             | 安全模式     | `true`             | 开启后会保存最新一条消息的ID |
-| DEBUG_MODE            | 调试模式     | `false`            | 开启后会保存最新一条消息    |
-| DEV_MODE              | 开发模式     | `false`            | 开启后会展示更多调试信息    |
-
-## 用户配置
-
-每个用户的自定义配置，只能通过Telegram发送消息来修改，消息格式为`/setenv KEY=VALUE`, 用户配置的优先级比系统配置的更高。如果想删除配置，请使用`/delenv KEY`。 批量设置变量请使用`/setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}`
-
-所有 `xxx_MODELS_LIST` 可以是一个 URL 或一个 JSON 数组字符串。当它为空时，将默认使用 `xxx__API_BASE` 拼接成 URL 并请求获取所有模型的列表。如果您想手动设置模型列表，可以使用 JSON 数组字符串。
-
-### 通用配置
-
-| KEY                          | 名称              | 默认值      | 描述                                                                     |
-|------------------------------|-----------------|----------|------------------------------------------------------------------------|
-| AI_PROVIDER                  | AI提供商           | `auto`   | 可选值 `auto, openai, azure, workers, gemini, mistral, cohere, anthropic` |
-| AI_IMAGE_PROVIDER            | AI图片提供商         | `auto`   | 可选值 `auto, openai, azure, workers`                                     |
-| SYSTEM_INIT_MESSAGE          | 全局默认初始化消息       | `null`   | 根据绑定的语言自动选择默认值                                                         |
-| ~~SYSTEM_INIT_MESSAGE_ROLE~~ | ~~全局默认初始化消息角色~~ | `system` | 废弃                                                                     |
-
-### OpenAI
-
-| KEY                     | 名称                      | 默认值                         |
-|-------------------------|-------------------------|-----------------------------|
-| OPENAI_API_KEY          | OpenAI API Key          | `''`(array string)          |
-| OPENAI_CHAT_MODEL       | OpenAI的模型名称             | `gpt-4o-mini`               |
-| OPENAI_API_BASE         | OpenAI API BASE         | `https://api.openai.com/v1` |
-| OPENAI_API_EXTRA_PARAMS | OpenAI API Extra Params | `{}`                        |
-| OPENAI_CHAT_MODELS_LIST | OpenAI 模型列表             | `''`                        |
-
-### Dall-e
-| KEY                  | Name        | Default     |
-|----------------------|-------------|-------------|
-| DALL_E_MODEL         | DALL-E的模型名称 | `dall-e-3`  |
-| DALL_E_IMAGE_SIZE    | DALL-E图片尺寸  | `1024x1024` |
-| DALL_E_IMAGE_QUALITY | DALL-E图片质量  | `standard`  |
-| DALL_E_IMAGE_STYLE   | DALL-E图片风格  | `vivid`     |
-| DALL_E_MODELS_LIST   | DALL-E模型列表  | `''`        |
-
-### Azure OpenAI
-
-> AZURE_COMPLETIONS_API `https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/chat/completions?api-version=VERSION_NAME`
-
-> AZURE_DALLE_API `https://RESOURCE_NAME.openai.azure.com/openai/deployments/MODEL_NAME/images/generations?api-version=VERSION_NAME`
-
-| KEY                       | 名称                        | 默认值          |
-|---------------------------|---------------------------|--------------|
-| AZURE_API_KEY             | Azure API Key             | `null`       |
-| ~~AZURE_COMPLETIONS_API~~ | ~~Azure Completions API~~ | `null`       |
-| ~~AZURE_DALLE_API~~       | ~~Azure DallE API~~       | `null`       |
-| AZURE_RESOURCE_NAME       | Azure 资源名称                | `null`       |
-| AZURE_CHAT_MODEL          | Azure 对话模型                | `null`       |
-| AZURE_IMAGE_MODEL         | Azure 图片模型                | `null`       |
-| AZURE_API_VERSION         | Azure API 版本号             | `2024-06-01` |
-| AZURE_CHAT_MODELS_LIST    | Azure聊天模型列表               | `''`         |
-
-
-### Workers
-
-| KEY                       | 名称                    | 默认值                                    |
-|---------------------------|-----------------------|----------------------------------------|
-| CLOUDFLARE_ACCOUNT_ID     | Cloudflare Account ID | `null`                                 |
-| CLOUDFLARE_TOKEN          | Cloudflare Token      | `null`                                 |
-| WORKERS_CHAT_MODEL        | Workers对话模型           | `@cf/qwen/qwen1.5-7b-chat-awq`         |
-| WORKERS_IMAGE_MODEL       | Workers文生图模型          | `@cf/black-forest-labs/flux-1-schnell` |
-| WORKERS_CHAT_MODELS_LIST  | Workers聊天模型列表         | `''`                                   |
-| WORKERS_IMAGE_MODELS_LIST | Workers文生图模型列表        | `''`                                   |
-
-### Gemini
-
-> cloudflare workers 暂时不支持访问
-
-| KEY                          | 名称                               | 默认值                                                        |
-|------------------------------|----------------------------------|------------------------------------------------------------|
-| GOOGLE_API_KEY               | Google Gemini API Key            | `null`                                                     |
-| ~~GOOGLE_COMPLETIONS_API~~   | ~~Google Gemini API~~            | `https://generativelanguage.googleapis.com/v1beta/models/` |
-| ~~GOOGLE_COMPLETIONS_MODEL~~ | ~~Google Gemini Model~~          | `gemini-pro`                                               |
-| GOOGLE_CHAT_MODEL            | Google Gemini Model              | `gemini-pro`                                               |
-| GOOGLE_API_BASE              | 支持Openai API 格式的 Gemini API Base | `https://generativelanguage.googleapis.com/v1beta`         |
-| GOOGLE_CHAT_MODELS_LIST      | 谷歌聊天模型列表                         | `''`                                                       |
-
-### Mistral
-
-| KEY                      | 名称                | 默认值                         |
-|--------------------------|-------------------|-----------------------------|
-| MISTRAL_API_KEY          | Mistral API Key   | `null`                      |
-| MISTRAL_API_BASE         | Mistral API Base  | `https://api.mistral.ai/v1` |
-| MISTRAL_CHAT_MODEL       | Mistral API Model | `mistral-tiny`              |
-| MISTRAL_CHAT_MODELS_LIST | Mistral聊天模型列表     | `''`                        |
-
-### Cohere
-
-| KEY                     | 名称               | 默认值                         |
-|-------------------------|------------------|-----------------------------|
-| COHERE_API_KEY          | Cohere API Key   | `null`                      |
-| COHERE_API_BASE         | Cohere API Base  | `https://api.cohere.com/v1` |
-| COHERE_CHAT_MODEL       | Cohere API Model | `command-r-plus`            |
-| COHERE_CHAT_MODELS_LIST | Cohere 聊天室型号列表   | `''`                        |
-
-### Anthropic
-
-| KEY                        | 名称                  | 默认值                            |
-|----------------------------|---------------------|--------------------------------|
-| ANTHROPIC_API_KEY          | Anthropic API Key   | `null`                         |
-| ANTHROPIC_API_BASE         | Anthropic API Base  | `https://api.anthropic.com/v1` |
-| ANTHROPIC_CHAT_MODEL       | Anthropic API Model | `claude-3-haiku-20240307`      |
-| ANTHROPIC_CHAT_MODELS_LIST | Anthropic聊天模型列表     | `''`                           |
-
-### Groq
-
-| KEY                   | 名称             | 默认值                              |
-|-----------------------|----------------|----------------------------------|
-| GROQ_API_KEY          | Groq API Key   | `null`                           |
-| GROQ_API_BASE         | Groq API Base  | `https://api.groq.com/openai/v1` |
-| GROQ_CHAT_MODEL       | Groq API Model | `groq-chat`                      |
-| GROQ_CHAT_MODELS_LIST | Groq聊天模型列表     | `''`                             |
-
-### DeepSeek
-
-| KEY                       | 名称                 | 默认值                        |
-|---------------------------|--------------------|----------------------------|
-| DEEPSEEK_API_KEY          | DeepSeek API Key   | `null`                     |
-| DEEPSEEK_API_BASE         | DeepSeek API Base  | `https://api.deepseek.com` |
-| DEEPSEEK_CHAT_MODEL       | DeepSeek API Model | `deepseek-chat`            |
-| DEEPSEEK_CHAT_MODELS_LIST | DeepSeek 聊天模型列表    | `''`                       |
-
-### XAi
-
-| KEY                  | 名称            | 默认值                |
-|----------------------|---------------|--------------------|
-| XAI_API_KEY          | XAi API Key   | `null`             |
-| XAI_API_BASE         | XAi API Base  | `https://api.x.ai` |
-| XAI_CHAT_MODEL       | XAi API Model | `grok-2-latest`    |
-| XAI_CHAT_MODELS_LIST | XAi 聊天模型列表    | `''`               |
-
-
-## 支持命令
-
-| 命令         | 说明                  | 示例                                              |
-|:-----------|:--------------------|:------------------------------------------------|
-| `/help`    | 获取命令帮助              | `/help`                                         |
-| `/new`     | 发起新的对话              | `/new`                                          |
-| `/start`   | 获取你的ID，并发起新的对话      | `/start`                                        |
-| `/img`     | 生成一张图片              | `/img 图片描述`                                     |
-| `/version` | 获取当前版本号，判断是否需要更新    | `/version`                                      |
-| `/setenv`  | 设置用户配置, 详情见`用户配置`   | `/setenv KEY=VALUE`                             |
-| `/setenvs` | 批量设置用户配置, 详情见`用户配置` | `/setenvs {"KEY1": "VALUE1", "KEY2": "VALUE2"}` |
-| `/delenv`  | 删除用户配置              | `/delenv KEY`                                   |
-| `/system`  | 查看当前一些系统信息          | `/system`                                       |
-| `/redo`    | 修改上一个提问或者换一个回答      | `/redo 修改过的内容` 或者 `/redo`                       |
-| `/models`  | 切换对话模型              | `/models` 后通过内置菜单选择模型                           |
-| `/echo`    | 回显消息,仅开发模式可用        | `/echo`                                         |
-
-## 自定义命令
-
-除了上述系统定义的指令，你也可以自定义快捷指令， 可以将某些较长的指令简化为一个单词的指令。
-
-自定义指令使用环境变量设置 `CUSTOM_COMMAND_XXX`，其中XXX为指令名，比如`CUSTOM_COMMAND_azure`，值为指令内容，比如`/setenvs {"AI_PROVIDER": "azure"}`。 这样就可以使用`/azure`来代替`/setenvs {"AI_PROVIDER": "azure"}`实现快速切换AI提供商。
-
-下面是一些自定义指令例子
-
-| 指令                     | 值                                                                          |
-|------------------------|----------------------------------------------------------------------------|
-| CUSTOM_COMMAND_azure   | `/setenvs {"AI_PROVIDER": "azure"}`                                        |
-| CUSTOM_COMMAND_workers | `/setenvs {"AI_PROVIDER": "workers"}`                                      |
-| CUSTOM_COMMAND_gpt3    | `/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}` |
-| CUSTOM_COMMAND_gpt4    | `/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}`         |
-| CUSTOM_COMMAND_cn2en   | `/setenvs {"SYSTEM_INIT_MESSAGE": "你是一个翻译下面将我说的话都翻译成英文"}`                  |
-
-如果你是用toml进行配置，可以使用下面的方式：
-
-```toml
-CUSTOM_COMMAND_azure= '/setenvs {"AI_PROVIDER": "azure"}'
-CUSTOM_COMMAND_workers = '/setenvs {"AI_PROVIDER": "workers"}'
-CUSTOM_COMMAND_gpt3 = '/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-3.5-turbo"}'
-CUSTOM_COMMAND_gpt4 = '/setenvs {"AI_PROVIDER": "openai", "OPENAI_CHAT_MODEL": "gpt-4"}'
-CUSTOM_COMMAND_cn2en = '/setenvs {"SYSTEM_INIT_MESSAGE": "你是一个翻译下面将我说的话都翻译成英文"}'
-```
-
-## 自定义指令帮助信息
-
-如果你想为自定义指令添加帮助信息，可以使用环境变量设置 `COMMAND_DESCRIPTION_XXX`，其中`XXX`为指令名，比如`COMMAND_DESCRIPTION_azure`，值为指令描述，比如`切换AI提供商为Azure`。 这样就可以使用`/help`查看到自定义指令的帮助信息。
-
-下面是一些自定义指令帮助信息例子
-
-| 指令描述                        | 描述                           |
-|-----------------------------|------------------------------|
-| COMMAND_DESCRIPTION_azure   | 切换AI提供商为Azure                |
-| COMMAND_DESCRIPTION_workers | 切换AI提供商为Workers              |
-| COMMAND_DESCRIPTION_gpt3    | 切换AI提供商为OpenAI GPT-3.5 Turbo | 
-| COMMAND_DESCRIPTION_gpt4    | 切换AI提供商为OpenAI GPT-4         | 
-| COMMAND_DESCRIPTION_cn2en   | 将对话内容翻译成英文                   |
-
-如果你是用toml进行配置，可以使用下面的方式：
-
-```toml
-COMMAND_DESCRIPTION_azure = '切换AI提供商为Azure'
-COMMAND_DESCRIPTION_workers = '切换AI提供商为Workers'
-COMMAND_DESCRIPTION_gpt3 = '切换AI提供商为OpenAI GPT-3.5 Turbo'
-COMMAND_DESCRIPTION_gpt4 = '切换AI提供商为OpenAI GPT-4'
-COMMAND_DESCRIPTION_cn2en = '将对话内容翻译成英文'
-```
-
-如果你想将自定义命令绑定到telegram的菜单中，你可以添加如下环境变量`COMMAND_SCOPE_azure = "all_private_chats,all_group_chats,all_chat_administrators"`，这样插件就会在所有的私聊，群聊和群组中生效。
-
-### 生成辅助函数
-```js
-function stringify(obj) {
-	const res = {}
-	for(const key of Object.keys(obj)) {
-		res[key] = JSON.stringify(obj[key])
-	}
-	return JSON.stringify(res)
-}
-
-console.log(`/setenvs ${stringify(
-	{
-		"AI_PROVIDER": "openai",
-		"OPENAI_CHAT_MODELS_LIST": ["gpt4", "gpt3", "gpt2", "gpt1"]
-	}
-)}`)
-
-// output: /setenvs {"AI_PROVIDER":"\"openai\"","OPENAI_CHAT_MODELS_LIST":"[\"gpt4\",\"gpt3\",\"gpt2\",\"gpt1\"]"}
-```
-
-## 模型列表
-
-支持使用 `/models` 命令获取支持的模型列表，并且通过菜单选择切换。
-模型列表支持的配置项的类型为 URL 或者 json 数组。 如果是 URL，会自动请求获取模型列表，如果是 json 数组，会直接使用该数组。
-当前支持从URL获取模型列表的AI提供商有 `openai, workers, mistral, cohere`。只支持 json 数组的AI提供商有 `azure, gemini, anthropic`。
-当支持从URL获取模型列表的AI提供商的模型列表配置项为空时候，会默认根据其 base api 自动拼接获取模型列表的URL。
-
-| AI提供商     | 模型列表配置项                        | 自动拼接生成的值                                                                                                         |
-|:----------|--------------------------------|------------------------------------------------------------------------------------------------------------------|
-| openai    | OPENAI_CHAT_MODELS_LIST        | `${OPENAI_API_BASE}/models`                                                                                      |
-| workers   | WORKERS_CHAT_MODELS_LIST       | `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/models/search?task=Text%20Generation` |
-| mistral   | MISTRAL_CHAT_MODELS_LIST       | `${MISTRAL_API_BASE}/models`                                                                                     |
-| cohere    | COHERE_CHAT_MODELS_LIST        | `https://api.cohere.com/v1/models`                                                                               |
-| azure     | AZURE_CHAT_MODELS_LIST         | `https://${context.AZURE_RESOURCE_NAME}.openai.azure.com/openai/models?api-version=${context.AZURE_API_VERSION}` |
-| gemini    | GOOGLE_COMPLETIONS_MODELS_LIST | `${GOOGLE_API_BASE}/v1beta/models`                                                                               |
-| anthropic | ANTHROPIC_CHAT_MODELS_LIST     | `${ANTHROPIC_API_BASE}/models`                                                                                   |
+见 [DEPLOY_OTHERS.md](./DEPLOY_OTHERS.md) —— 运行时 `config.json` 只配置数据库、服务器与代理;bot 配置仍在管理后台。

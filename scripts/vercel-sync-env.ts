@@ -1,13 +1,32 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
-import { parse } from 'toml';
+import { parse } from 'jsonc-parser';
+
+/** 通过 `command -v` 判断命令是否在 PATH 上(不依赖 shell 特定的 which 实现) */
+function which(bin: string): boolean {
+    try {
+        execSync(`command -v ${bin}`, { stdio: 'ignore' });
+        return true;
+    } catch {
+        return false;
+    }
+}
 
 async function main() {
     const {
-        TOML_PATH = 'wrangler.toml',
+        WRANGLER_PATH = 'wrangler.jsonc',
         VERCEL_ENV = 'production',
-        VERCEL_BIN = './node_modules/.bin/vercel',
+        // vercel CLI 不作为仓库依赖安装,用全局命令(或通过 VERCEL_BIN 指向自定义路径)
+        VERCEL_BIN = 'vercel',
     } = process.env;
+
+    if (!which(VERCEL_BIN)) {
+        throw new Error(
+            `找不到 Vercel CLI(${VERCEL_BIN})。它不在本仓库依赖中,请先安装:\n` +
+                '  npm i -g vercel\n' +
+                '或指定路径:VERCEL_BIN=/path/to/vercel pnpm run vercel:syncenv',
+        );
+    }
 
     const envs = execSync(`${VERCEL_BIN} env ls ${VERCEL_ENV}`, { encoding: 'utf-8' })
         .trim()
@@ -19,7 +38,9 @@ async function main() {
     const usedKeys = new Set<string>();
     usedKeys.add('UPSTASH_REDIS_REST_URL');
     usedKeys.add('UPSTASH_REDIS_REST_TOKEN');
-    const { vars } = parse(await fs.readFile(TOML_PATH, 'utf-8'));
+    const { vars = {} } = parse(await fs.readFile(WRANGLER_PATH, 'utf-8'), undefined, {
+        allowTrailingComma: true,
+    });
     for (const [key, value] of Object.entries(vars)) {
         try {
             usedKeys.add(key);
@@ -33,10 +54,9 @@ async function main() {
     }
     for (const key of envs) {
         if (!usedKeys.has(key)) {
-            console.log(`Delete ${key}?)`);
-            execSync(`${VERCEL_BIN} env rm ${key} ${VERCEL_ENV}`, {
-                encoding: 'utf-8',
-            });
+            console.log(
+                `Keep ${key}: not declared in ${WRANGLER_PATH}. Vercel variables are managed in the dashboard; remove it manually if unneeded.`,
+            );
         }
     }
 }

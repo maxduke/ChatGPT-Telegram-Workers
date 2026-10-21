@@ -1,6 +1,7 @@
 /* eslint-disable regexp/no-potentially-useless-backreference */
 const INTERPOLATE_LOOP_REGEXP = /\{\{#each(?::(\w+))?\s+(\w+)\s+in\s+([\w.[\]]+)\}\}([\s\S]*?)\{\{\/each(?::\1)?\}\}/g;
-const INTERPOLATE_CONDITION_REGEXP = /\{\{#if(?::(\w+))?\s+([\w.[\]]+)\}\}([\s\S]*?)(?:\{\{#else(?::\1)?\}\}([\s\S]*?))?\{\{\/if(?::\1)?\}\}/g;
+const INTERPOLATE_CONDITION_REGEXP =
+    /\{\{#if(?::(\w+))?\s+([\w.[\]]+)\}\}([\s\S]*?)(?:\{\{#else(?::\1)?\}\}([\s\S]*?))?\{\{\/if(?::\1)?\}\}/g;
 const INTERPOLATE_VARIABLE_REGEXP = /\{\{([\w.[\]]+)\}\}/g;
 
 function evaluateExpression(expr: string, localData: any): undefined | any {
@@ -29,7 +30,7 @@ function evaluateExpression(expr: string, localData: any): undefined | any {
 export function interpolate(template: string, data: any, formatter?: (value: any) => string): string {
     const processConditional = (condition: string, trueBlock: string, falseBlock: string, localData: any): string => {
         const result = evaluateExpression(condition, localData);
-        return result ? trueBlock : (falseBlock || '');
+        return result ? trueBlock : falseBlock || '';
     };
 
     const processLoop = (itemName: string, arrayExpr: string, loopContent: string, localData: any): string => {
@@ -38,18 +39,22 @@ export function interpolate(template: string, data: any, formatter?: (value: any
             console.warn(`Expression "${arrayExpr}" did not evaluate to an array`);
             return '';
         }
-        return array.map((item) => {
-            const itemData = { ...localData, [itemName]: item, '.': item };
-            return interpolate(loopContent, itemData);
-        }).join('');
+        return array
+            .map(item => {
+                const itemData = { ...localData, [itemName]: item, '.': item };
+                return interpolate(loopContent, itemData);
+            })
+            .join('');
     };
 
     const processTemplate = (tmpl: string, localData: any) => {
         tmpl = tmpl.replace(INTERPOLATE_LOOP_REGEXP, (_, alias, itemName, arrayExpr, loopContent) =>
-            processLoop(itemName, arrayExpr, loopContent, localData));
+            processLoop(itemName, arrayExpr, loopContent, localData),
+        );
 
         tmpl = tmpl.replace(INTERPOLATE_CONDITION_REGEXP, (_, alias, condition, trueBlock, falseBlock) =>
-            processConditional(condition, trueBlock, falseBlock, localData));
+            processConditional(condition, trueBlock, falseBlock, localData),
+        );
 
         return tmpl.replace(INTERPOLATE_VARIABLE_REGEXP, (_, expr) => {
             const value = evaluateExpression(expr, localData);

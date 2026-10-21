@@ -14,16 +14,19 @@ const COMMIT_HASH = ((): string => {
 
 async function createVersionTs(outDir: string) {
     await fs.writeFile(
-        path.resolve(outDir, 'packages/lib/core/src/config/version.ts'),
+        path.resolve(outDir, 'packages/lib/config/src/version.ts'),
         `export const BUILD_TIMESTAMP = ${TIMESTAMP};\nexport const BUILD_VERSION = '${COMMIT_HASH}';\n`,
     );
 }
 
 async function createVersionJson(outDir: string) {
-    await fs.writeFile(path.resolve(outDir, 'dist/buildinfo.json'), JSON.stringify({
-        sha: COMMIT_HASH,
-        timestamp: TIMESTAMP,
-    }));
+    await fs.writeFile(
+        path.resolve(outDir, 'dist/buildinfo.json'),
+        JSON.stringify({
+            sha: COMMIT_HASH,
+            timestamp: TIMESTAMP,
+        }),
+    );
 }
 
 export async function createVersion(outDir: string) {
@@ -31,8 +34,6 @@ export async function createVersion(outDir: string) {
     await createVersionJson(outDir);
 }
 
-const {
-    TARGET_DIR = '.',
-} = process.env;
+const { TARGET_DIR = '.' } = process.env;
 
 createVersion(TARGET_DIR).catch(console.error);

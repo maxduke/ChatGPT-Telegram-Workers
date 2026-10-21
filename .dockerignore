@@ -7,7 +7,6 @@
 dist
 doc
 node_modules
-plugins
 scripts
 wrangler.toml
 wrangler-example.toml
